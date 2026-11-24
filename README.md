@@ -47,7 +47,9 @@ When it finishes it runs the doctor, and `skills/fast-zsh/scripts/doctor.sh` run
 ## What it installs
 
 Homebrew packages: starship, zoxide, eza, fd, fzf, bat, mise, hyperfine, zsh-autosuggestions, zsh-syntax-highlighting, zsh-completions.
-Links from `~/.zshrc`, `~/.zshenv`, `~/.zprofile` and `~/.config/starship.toml` into `~/.config/fast-zsh/`.
+The managed config in `~/.config/fast-zsh/`, loaded by short real files at `~/.zshrc`, `~/.zshenv` and `~/.zprofile`.
+Installers like bun, gcloud and rustup can keep appending to those three files, and updates keep what they add.
+A link from `~/.config/starship.toml` to the prompt config.
 A global node through mise, with `.nvmrc` and `.node-version` support switched on.
 An empty `~/.zsh.local` for your own aliases, PATH entries and secrets.
 
@@ -60,7 +62,7 @@ An empty `~/.zsh.local` for your own aliases, PATH entries and secrets.
 | Ctrl-T, Alt-C | Fuzzy-pick a file path, or a directory to cd into, with a file or tree preview |
 | Ctrl-/ | Toggle the preview pane (in Ctrl-R it shows the full command) |
 | Right arrow | Accept the grey suggestion |
-| `ll`, `la`, `lt` | eza listings, with git status and a two-level tree |
+| `ll`, `la`, `lt` | eza listings, with git status and a two-level tree (`ls` itself is untouched, so `ls -lt` still works) |
 | `gs`, `gd`, `gp`, `gpl`, `gl`, `lg` | git status, diff, push, pull --rebase, log, lazygit |
 | `gdd` | Side-by-side diff through delta (when delta is installed) |
 | `mkcd`, `ports`, `killport 3000` | Make and enter a directory, list listeners, stop one |
@@ -94,10 +96,30 @@ starship preset tokyo-night -o ~/.config/starship.toml   # replaces the link wit
 Presets that draw icons or colored segments need a Nerd Font too.
 A real file at `~/.config/starship.toml` is yours to keep, and the installer backs it up before replacing it.
 
+## Terminal fonts
+
+```
+skills/fast-zsh/scripts/fonts.sh check     # read-only report for Ghostty, cmux, iTerm and Terminal.app
+skills/fast-zsh/scripts/fonts.sh apply     # writes font-family for Ghostty and cmux
+```
+
+Use the Mono variant, "JetBrainsMono Nerd Font Mono", in every terminal.
+Never select a Propo variant, because its glyph widths vary and break the terminal's grid.
+Kerning does not apply on a grid, so leave the spacing settings at their defaults and keep anti-aliasing on.
+`fonts.sh check` flags a Propo font, a non-Mono Nerd Font, off-default spacing and disabled anti-aliasing, and the doctor includes it.
+iTerm and Terminal.app keep their font in the profile, so `apply` prints the exact steps for them.
+`skills/fast-zsh/references/troubleshooting.md` explains the variants and each rendering setting.
+
+## mise and the prompt hook
+
+mise runs a small command before every prompt (about 12ms) so node follows the `.nvmrc` or `mise.toml` in the current directory.
+To pay nothing per prompt, put `export FAST_ZSH_MISE_SHIMS=1` in `~/.zshenv` and mise switches to shims.
+
 ## Update and roll back
 
 Pull the repo (or update the plugin) and re-run the installer.
-`skills/fast-zsh/scripts/uninstall.sh` removes the links and restores your previous files.
+`skills/fast-zsh/scripts/uninstall.sh` removes the fast-zsh lines and restores your previous files, keeping anything other tools appended.
+Installs from v0.1 and v0.2 linked those three files into `~/.config/fast-zsh`, and re-running the installer migrates them without losing lines other tools added.
 
 ## Repository layout
 
@@ -106,7 +128,7 @@ Pull the repo (or update the plugin) and re-run the installer.
 install.sh             wrapper for skills/fast-zsh/scripts/install.sh
 skills/fast-zsh/
   SKILL.md             instructions the agent follows
-  scripts/             install.sh, doctor.sh, uninstall.sh
+  scripts/             install.sh, doctor.sh, fonts.sh, uninstall.sh (legacy/ holds v0.1 baselines for migration)
   config/              the files that get installed (starship.toml, starship-icons.toml, zsh modules)
   references/          troubleshooting guide
 ```

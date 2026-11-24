@@ -27,15 +27,24 @@ Scripts are idempotent and back up anything they replace to `~/.config-backups/f
    Read those files in the backup directory and move what the user still wants into `~/.zsh.local`.
    Drop the nvm, oh-my-zsh and pyenv init lines, and tell the user mise replaces nvm (`.nvmrc` still works).
 5. Ask the user to open a new terminal tab and check the prompt.
-   If they chose `--icons` and see a box where the branch icon should be, the terminal font is wrong (see troubleshooting).
+   If they chose `--icons`, run `scripts/fonts.sh check` and walk them through any terminal it flags.
+   A box where the branch icon should be means that terminal's font is wrong (see troubleshooting).
    If startup feels slow, run `zshprof` and fix the top entry.
 6. Report what changed, the backup path, how to roll back (`scripts/uninstall.sh`), and the few habits worth learning: `z <fragment>` to jump to a directory, Ctrl-R for fuzzy history, Ctrl-T for files with a preview, Ctrl-/ to toggle previews.
 
 ## Repair
 
 Run `scripts/doctor.sh`.
-It checks tools, links, startup errors, completion permissions, PATH duplicates, node through mise and startup time, and prints a `fix:` line per problem.
+It checks tools, the startup files, startup errors, completion permissions, PATH duplicates, node through mise, terminal fonts and startup time, and prints a `fix:` line per problem.
 Apply the fix, re-run, and stop when it reports 0 fail.
+
+For font and rendering problems run `scripts/fonts.sh check`, which reads the real settings of Ghostty, cmux, iTerm and Terminal.app.
+`scripts/fonts.sh apply` fixes Ghostty and cmux (they share `~/.config/ghostty/config`) and prints the steps for iTerm and Terminal.app, which keep the font in the profile.
+Always pick the Mono variant, never a Propo variant, and leave spacing at its defaults.
+`references/troubleshooting.md` explains the variants and each rendering setting.
+
+On an install made by v0.1 or v0.2, `~/.zshrc` is a symlink into `~/.config/fast-zsh`.
+Re-run `scripts/install.sh`: it migrates the file and keeps any lines other tools appended.
 
 ## Rules
 

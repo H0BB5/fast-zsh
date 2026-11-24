@@ -1,7 +1,8 @@
 # Navigation / listing
+# `ls` is deliberately left alone: eza's -t selects a timestamp field instead of sorting by
+# time, so an `ls` alias breaks the `ls -lt` habit with an error. The eza commands get new names.
 alias ..='cd ..' ...='cd ../..' ....='cd ../../..'
 if (( $+commands[eza] )); then
-  alias ls='eza --group-directories-first'
   alias ll='eza -l --git --group-directories-first'
   alias la='eza -la --git --group-directories-first'
   alias lt='eza --tree --level=2 --git-ignore'

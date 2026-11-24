@@ -5,19 +5,25 @@ fpath=(
   $fpath
 )
 
-autoload -Uz compinit
-_zdump=$ZSH_CACHE_DIR/zcompdump
-# Full (security-audited) rebuild at most once a day; otherwise trust the cache (-C).
-if [[ ! -s $_zdump || -n $_zdump(#qN.mh+24) ]]; then
-  compinit -d "$_zdump"
-else
-  compinit -C -d "$_zdump"
-fi
-# Byte-compile the dump in the background so the next load is faster.
-if [[ -s $_zdump && ( ! -s $_zdump.zwc || $_zdump -nt $_zdump.zwc ) ]]; then
-  { zcompile "$_zdump" } &!
-fi
-unset _zdump
+# Anonymous function so EXTENDED_GLOB (needed for the (#q...) age test) stays local and never
+# leaks into the interactive shell, where it breaks `git reset HEAD^`.
+() {
+  setopt local_options extended_glob
+  autoload -Uz compinit
+  local zdump=$ZSH_CACHE_DIR/zcompdump
+  # Full (security-audited) pass at most once a day; otherwise trust the cache (-C, ~12ms faster).
+  # compinit leaves a still-valid dump untouched, so without the `touch` an old dump would send
+  # every later shell through the slow audit again.
+  if [[ ! -s $zdump || -n $zdump(#qN.mh+24) ]]; then
+    compinit -d "$zdump" && touch "$zdump"
+  else
+    compinit -C -d "$zdump"
+  fi
+  # Byte-compile the dump in the background so the next load is faster.
+  if [[ -s $zdump && ( ! -s $zdump.zwc || $zdump -nt $zdump.zwc ) ]]; then
+    { zcompile "$zdump" } &!
+  fi
+}
 
 zmodload zsh/complist
 _comp_options+=(globdots)                       # complete dotfiles without GLOB_DOTS

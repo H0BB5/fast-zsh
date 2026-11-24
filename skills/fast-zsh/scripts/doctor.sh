@@ -39,9 +39,22 @@ chk() { # chk <link-path> <expected-target>
   elif [ -e "$1" ]; then fail "$1 exists but is not the fast-zsh link" "re-run install.sh (it backs the file up first)"
   else fail "$1 missing" "re-run install.sh"; fi
 }
-chk "$HOME/.zshrc" "$DEST/.zshrc"
-chk "$HOME/.zshenv" "$DEST/.zshenv"
-chk "$HOME/.zprofile" "$DEST/.zprofile"
+STUB_MARK="fast-zsh: loads the managed config."
+chkstub() { # chkstub <dotfile name>
+  local p="$HOME/$1"
+  if [ -L "$p" ] && readlink "$p" | grep -q "/.config/fast-zsh/"; then
+    warn "$p is a symlink into fast-zsh (older install): lines other tools append would land in a managed file that updates overwrite" "re-run install.sh to migrate it; nothing you added is lost"
+  elif [ -f "$p" ] && grep -qF "$STUB_MARK" "$p" && grep -qF ".config/fast-zsh/$1" "$p"; then
+    pass "$p loads ~/.config/fast-zsh/$1"
+  elif [ -f "$p" ]; then
+    fail "$p does not load the fast-zsh config" "re-run install.sh (it backs the file up first)"
+  else
+    fail "$p is missing" "re-run install.sh"
+  fi
+}
+chkstub .zshrc
+chkstub .zshenv
+chkstub .zprofile
 sl="$(readlink "$HOME/.config/starship.toml" 2>/dev/null)"
 if [ "$sl" = "$DEST/starship-icons.toml" ]; then
   pass "$HOME/.config/starship.toml -> $sl"
@@ -85,19 +98,28 @@ if command -v mise >/dev/null 2>&1; then
   nv="$(mise exec -- node -v 2>/dev/null)"
   [ -n "$nv" ] && pass "node $nv via mise" || warn "no node from mise" "mise use -g node@lts"
 fi
-if [ -d "$HOME/.nvm" ] && grep -Eqs 'nvm\.sh|NVM_DIR' "$HOME/.zsh.local"; then
-  warn "~/.zsh.local still loads nvm (adds ~700ms and fights mise)" "delete those lines; mise reads .nvmrc"
-fi
-
-echo "== Slow-startup culprits in ~/.zsh.local"
-if [ -r "$HOME/.zsh.local" ]; then
-  hit=0
-  for pat in 'oh-my-zsh' 'nvm\.sh' 'pyenv init' 'rbenv init' 'jenv init' 'conda initialize' 'compinit' 'sdkman-init' 'p10k|powerlevel10k'; do
-    if grep -Eq "$pat" "$HOME/.zsh.local"; then warn "~/.zsh.local contains '$pat'" "remove it or lazy-load it (see troubleshooting.md)"; hit=1; fi
+echo "== Startup files you or other tools edited"
+hit=0
+for f in .zshrc .zshenv .zprofile .zsh.local; do
+  p="$HOME/$f"; [ -f "$p" ] && [ ! -L "$p" ] || continue
+  n="$(grep -vF -e "$STUB_MARK" -e ".config/fast-zsh/$f" "$p" | grep -Evc '^[[:space:]]*(#|$)')"
+  [ "$f" != ".zsh.local" ] && [ "${n:-0}" -gt 0 ] && info "~/$f has $n line(s) added by other tools (kept across updates)"
+  for pat in 'oh-my-zsh' 'nvm\.sh|NVM_DIR' 'pyenv init' 'rbenv init' 'jenv init' 'conda initialize' 'compinit' 'sdkman-init' 'p10k|powerlevel10k'; do
+    if grep -Eq "$pat" "$p"; then
+      warn "~/$f contains '$pat' (slows every shell)" "remove it, or lazy-load it (see troubleshooting.md); mise replaces nvm"
+      hit=1
+    fi
   done
-  [ "$hit" = 0 ] && pass "none found"
-else
-  pass "no ~/.zsh.local"
+done
+[ "$hit" = 0 ] && pass "no slow init lines found"
+
+echo "== Fonts"
+if [ -x "$(dirname "$0")/fonts.sh" ]; then
+  fout="$("$(dirname "$0")/fonts.sh" check 2>&1 | sed '/^== /d; /^Fonts: /d; /^$/d')"
+  printf '%s\n' "$fout"
+  PASS=$((PASS + $(printf '%s\n' "$fout" | grep -c '^  PASS')))
+  WARN=$((WARN + $(printf '%s\n' "$fout" | grep -c '^  WARN')))
+  FAIL=$((FAIL + $(printf '%s\n' "$fout" | grep -c '^  FAIL')))
 fi
 
 if [ "$QUICK" = 0 ]; then

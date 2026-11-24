@@ -78,12 +78,82 @@ fi
 
 # ── Config files ─────────────────────────────────────────────────
 step "Config -> $DEST"
-run mkdir -p "$DEST"
-run rsync -a --delete "$CONFIG_SRC/" "$DEST/"
-[ "$DRY" = 1 ] || say "  copied (personal changes belong in ~/.zsh.local, this directory is overwritten on update)"
 
+# Rescue lines other tools appended to the managed files. Older versions linked ~/.zshrc straight
+# into $DEST, so installers such as bun, gcloud and rustup wrote there, and the rsync below would
+# erase those lines. $DEST/.pristine holds the copy from the last install, so a diff against it
+# isolates exactly what was added.
+RESCUE="$(mktemp -d)"
+legacy=0
+for f in .zshrc .zshenv .zprofile; do
+  [ -f "$DEST/$f" ] || continue
+  base=""
+  if [ -f "$DEST/.pristine/$f" ]; then base="$DEST/.pristine/$f"
+  elif [ -f "$SKILL_DIR/scripts/legacy/$f" ]; then base="$SKILL_DIR/scripts/legacy/$f"   # v0.1.0 and v0.2.0 shipped these exact files
+  fi
+  if [ -n "$base" ]; then
+    diff "$base" "$DEST/$f" | sed -n 's/^> //p' > "$RESCUE/$f"
+  elif ! cmp -s "$DEST/$f" "$CONFIG_SRC/$f"; then
+    # No baseline to diff against: keep the whole file for the user to compare.
+    run mkdir -p "$BACKUP/legacy-managed"
+    run cp "$DEST/$f" "$BACKUP/legacy-managed/$f"
+    legacy=1
+  fi
+done
+
+run mkdir -p "$DEST"
+run rsync -a --delete --exclude .pristine "$CONFIG_SRC/" "$DEST/"
+run mkdir -p "$DEST/.pristine"
+for f in .zshrc .zshenv .zprofile; do run cp "$CONFIG_SRC/$f" "$DEST/.pristine/$f"; done
+[ "$DRY" = 1 ] || say "  copied (personal changes belong in ~/.zsh.local; this directory is overwritten on update)"
+[ "$legacy" = 1 ] && say "  note: your previous managed files are saved in $BACKUP/legacy-managed, compare them if you edited them by hand"
+
+# ~/.zshrc, ~/.zshenv and ~/.zprofile stay REAL files that load the managed copy. Tools that append
+# to them (bun, gcloud, rustup, Homebrew's installer) then write into a file updates never touch.
+STUB_MARK="# fast-zsh: loads the managed config."
 backed_up=0
-link() { # link <target> <link-path>
+stub() { # stub <dotfile-name>
+  local name="$1" path="$HOME/$1"
+  local l1="$STUB_MARK Lines other tools append below are kept across updates."
+  local l2="[[ -r \"\$HOME/.config/fast-zsh/$name\" ]] && source \"\$HOME/.config/fast-zsh/$name\""
+
+  if [ -f "$path" ] && [ ! -L "$path" ] && grep -qF "$STUB_MARK" "$path"; then
+    if grep -qF "$l2" "$path"; then say "  ok       $path"; return; fi
+    # Marker present but the source line is gone (a tool rewrote the file): restore it at the top.
+    if [ "$DRY" = 1 ]; then say "  [dry-run] restore source line in $path"; else
+      { printf '%s\n%s\n' "$l1" "$l2"; grep -vF "$STUB_MARK" "$path"; } > "$path.fz-tmp" && mv "$path.fz-tmp" "$path"
+      say "  repaired $path"
+    fi
+    return
+  fi
+
+  if [ -L "$path" ] && readlink "$path" | grep -q "/.config/fast-zsh/"; then
+    run rm "$path"
+    say "  migrate  $path was a link into fast-zsh"
+  elif [ -e "$path" ] || [ -L "$path" ]; then
+    run mkdir -p "$BACKUP"
+    run mv "$path" "$BACKUP/$name"
+    backed_up=1
+    say "  backup   $path -> $BACKUP/"
+  fi
+
+  if [ "$DRY" = 1 ]; then say "  [dry-run] write $path"; else
+    {
+      printf '%s\n%s\n' "$l1" "$l2"
+      if [ -s "$RESCUE/$name" ]; then
+        printf '\n# Lines other tools had added to the managed file, kept during migration:\n'
+        cat "$RESCUE/$name"
+      fi
+    } > "$path"
+    say "  write    $path"
+    [ -s "$RESCUE/$name" ] && say "  kept     $(wc -l < "$RESCUE/$name" | tr -d ' ') line(s) other tools had added to the managed $name"
+  fi
+}
+stub .zshrc
+stub .zshenv
+stub .zprofile
+
+link() { # link <target> <link-path>   (used for starship.toml, which tools do not append to)
   local target="$1" path="$2"
   if [ -L "$path" ] && [ "$(readlink "$path")" = "$target" ]; then say "  ok       $path"; return; fi
   if [ -e "$path" ] || [ -L "$path" ]; then
@@ -96,11 +166,14 @@ link() { # link <target> <link-path>
   run ln -s "$target" "$path"
   say "  link     $path -> $target"
 }
-link "$DEST/.zshrc"        "$HOME/.zshrc"
-link "$DEST/.zshenv"       "$HOME/.zshenv"
-link "$DEST/.zprofile"     "$HOME/.zprofile"
 if [ "$ICONS" = 1 ]; then STARSHIP_CFG="starship-icons.toml"; else STARSHIP_CFG="starship.toml"; fi
 link "$DEST/$STARSHIP_CFG" "$HOME/.config/starship.toml"
+
+# ── Terminal fonts (icon prompt only) ────────────────────────────
+if [ "$ICONS" = 1 ]; then
+  step "Terminal fonts"
+  if [ "$DRY" = 1 ]; then "$SKILL_DIR/scripts/fonts.sh" apply --dry-run; else "$SKILL_DIR/scripts/fonts.sh" apply; fi
+fi
 
 # ── Leftovers from the old config ────────────────────────────────
 if [ "$backed_up" = 1 ] && [ "$DRY" = 0 ]; then
@@ -119,6 +192,7 @@ if [ "$backed_up" = 1 ] && [ "$DRY" = 0 ]; then
   [ "$found" = 0 ] && say "  nothing notable"
   say "  Port what you still need into ~/.zsh.local. Nothing was deleted."
 fi
+rm -rf "$RESCUE"
 
 # ── ~/.zsh.local ─────────────────────────────────────────────────
 step "~/.zsh.local"
@@ -147,7 +221,7 @@ if command -v mise >/dev/null 2>&1 || [ "$DRY" = 1 ]; then
     say "  .nvmrc / .node-version support already enabled"
   else
     run mise settings add idiomatic_version_file_enable_tools node
-    say "  enabled .nvmrc / .node-version support"
+    [ "$DRY" = 1 ] || say "  enabled .nvmrc / .node-version support"
   fi
   if [ "$SKIP_NODE" = 1 ]; then
     say "  global node skipped (--skip-node)"
@@ -194,13 +268,10 @@ if [ "$DRY" = 0 ]; then
   zsh -l -i -c exit >/dev/null 2>&1; zsh -l -i -c exit >/dev/null 2>&1
   say "  done"
   step "Doctor"
-  "$SKILL_DIR/scripts/doctor.sh" || true
+  "$SKILL_DIR/scripts/doctor.sh"; doctor_rc=$?
   say ""
-  if [ "$ICONS" = 1 ]; then
-    say "Icons: set your terminal font to 'JetBrainsMono Nerd Font Mono' or the branch icon shows as a box."
-    say "  iTerm:   Settings > Profiles > Text > Font"
-    say "  Ghostty: add  font-family = \"JetBrainsMono Nerd Font Mono\"  to ~/.config/ghostty/config"
-  fi
   say "Open a new terminal tab to start using it."
-  [ "$backed_up" = 1 ] && say "Rollback: $SKILL_DIR/scripts/uninstall.sh"
+  if [ "$backed_up" = 1 ]; then say "Rollback: $SKILL_DIR/scripts/uninstall.sh"; fi
+  exit "$doctor_rc"
 fi
+exit 0

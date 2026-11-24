@@ -1,10 +1,12 @@
 # ── Shell options ────────────────────────────────────────────────
 setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
-setopt EXTENDED_GLOB INTERACTIVE_COMMENTS LONG_LIST_JOBS COMBINING_CHARS
+setopt INTERACTIVE_COMMENTS LONG_LIST_JOBS COMBINING_CHARS
 setopt NO_BEEP NO_FLOW_CONTROL
-# Deliberately NOT set: GLOB_DOTS (makes `rm -rf *` delete .git etc.) and MENU_COMPLETE
-# (cycles through matches instead of showing the menu). Dotfile *completion* is enabled
-# in completion.zsh instead.
+# Deliberately NOT set:
+#   EXTENDED_GLOB  makes ^ and # glob operators, so `git reset HEAD^` fails with "no matches found".
+#                  completion.zsh turns it on locally for the one place that needs it.
+#   GLOB_DOTS      makes `rm -rf *` match .git and friends. Dotfile *completion* is enabled instead.
+#   MENU_COMPLETE  cycles through matches instead of showing the menu.
 
 # ── History ──────────────────────────────────────────────────────
 HISTFILE=$HOME/.zsh_history

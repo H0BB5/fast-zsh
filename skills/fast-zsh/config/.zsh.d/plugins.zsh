@@ -2,7 +2,9 @@
 # runtime). zsh-syntax-highlighting MUST be sourced last.
 _zp=${HOMEBREW_PREFIX:-/opt/homebrew}/share
 
-ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+# History only. The `completion` strategy runs the completion system in the background on every
+# keystroke that has no history match, which is heavier and occasionally glitchy.
+ZSH_AUTOSUGGEST_STRATEGY=(history)
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=40
 ZSH_AUTOSUGGEST_MANUAL_REBIND=1                 # skip per-prompt widget rebinding (all widgets exist by now)
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'

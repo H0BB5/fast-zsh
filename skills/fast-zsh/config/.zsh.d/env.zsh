@@ -23,7 +23,8 @@ fi
 # Ctrl-R: full command in a hidden pane, for long commands that get cut off
 export FZF_CTRL_R_OPTS="--preview 'echo {2..}' --preview-window=up:3:hidden:wrap --bind 'ctrl-/:toggle-preview'"
 
-# zoxide: never record agent-managed git worktrees, so `z myrepo` lands on the main checkout.
-# Colon-separated globs; $HOME is zoxide's default. If your team names worktrees <repo>-wt-<name>,
-# add *-wt-* to the list in ~/.zsh.local.
-export _ZO_EXCLUDE_DIRS="$HOME:$HOME/.cursor/worktrees/*:$HOME/.claude/worktrees/*"
+# zoxide: never record worktrees or scratch directories, so `z myrepo` lands on the real checkout.
+# Colon-separated globs, and `*` crosses slashes. Claude Code creates worktrees inside each repo at
+# <repo>/.claude/worktrees/, Cursor uses ~/.cursor/worktrees/, and many teams keep <repo>/.worktrees/.
+# If yours are named <repo>-wt-<name>, add *-wt-* to the list in ~/.zsh.local.
+export _ZO_EXCLUDE_DIRS="$HOME:*/.claude/worktrees/*:*/.cursor/worktrees/*:*/.worktrees/*:/tmp/*:/private/tmp/*:/private/var/folders/*"
