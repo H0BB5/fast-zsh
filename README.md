@@ -9,7 +9,7 @@ The same repo is a Claude Code plugin, so an agent can install it, check it and 
 With Claude Code, as a plugin:
 
 ```
-/plugin marketplace add <this repo's git URL or local path>
+/plugin marketplace add H0BB5/fast-zsh
 /plugin install fast-zsh@fast-zsh
 ```
 
@@ -18,12 +18,15 @@ Then ask Claude to "set up fast-zsh".
 With Claude Code, as a plain skill:
 
 ```
-cp -R skills/fast-zsh ~/.claude/skills/
+git clone https://github.com/H0BB5/fast-zsh.git
+cp -R fast-zsh/skills/fast-zsh ~/.claude/skills/
 ```
 
 Without Claude:
 
 ```
+git clone https://github.com/H0BB5/fast-zsh.git
+cd fast-zsh
 ./install.sh --dry-run     # shows what would change
 ./install.sh
 ```
