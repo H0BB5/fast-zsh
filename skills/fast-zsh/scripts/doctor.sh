@@ -79,16 +79,25 @@ else fail "startup prints messages:" "see references/troubleshooting.md"; printf
 bad="$(zsh -fc 'fpath=('"${HOMEBREW_PREFIX:-/opt/homebrew}"'/share/zsh-completions $fpath); autoload -Uz compaudit; compaudit' 2>/dev/null)"
 if [ -z "$bad" ]; then pass "compaudit clean"; else for d in $bad; do fail "insecure completion dir: $d" "chmod go-w '$d' (sudo if you do not own it)"; done; fi
 
+shims="$(zsh -l -i -c 'print -r -- ${FAST_ZSH_MISE_SHIMS:-}' 2>/dev/null | tail -1)"
 for c in starship mise zoxide fzf; do
-  [ -s "$HOME/.cache/zsh/$c.zsh" ] && : || { warn "no init cache for $c yet" "open a new shell once; if it stays missing, run: $c --version"; }
+  command -v "$c" >/dev/null 2>&1 || continue            # a missing tool is already reported under Tools
+  [ "$c" = mise ] && [ -n "$shims" ] && continue         # shims mode keeps no init cache
+  [ -s "$HOME/.cache/zsh/$c.zsh" ] || warn "no init cache for $c yet" "open a new shell once; if it stays missing, run: $c --version"
 done
 
 paths="$(zsh -l -i -c 'print -l $path' 2>/dev/null)"
 dups="$(printf '%s\n' "$paths" | sort | uniq -d | wc -l | tr -d ' ')"
 [ "$dups" = 0 ] && pass "PATH has no duplicates" || warn "$dups duplicate PATH entries" "check ~/.zsh.local for path=(...) lines that do not end in \$path"
 
-fns="$(zsh -l -i -c 'print -r -- $+functions[z] $+functions[fzf-history-widget] $+functions[_mise_hook]' 2>/dev/null | tail -1)"
-[ "$fns" = "1 1 1" ] && pass "zoxide, fzf and mise hooks are loaded" || warn "tool hooks not loaded (z/fzf/mise: $fns)" "rm -rf ~/.cache/zsh && zsh -l -i -c exit"
+hooks="$(zsh -l -i -c 'print -r -- $+functions[z] $+functions[fzf-history-widget] $+functions[_mise_hook]' 2>/dev/null | tail -1)"
+read -r h_z h_fzf h_mise <<< "$hooks"
+bad=""
+command -v zoxide >/dev/null 2>&1 && [ "${h_z:-0}" != 1 ] && bad="$bad zoxide"
+command -v fzf >/dev/null 2>&1 && [ "${h_fzf:-0}" != 1 ] && bad="$bad fzf"
+if command -v mise >/dev/null 2>&1 && [ -z "$shims" ] && [ "${h_mise:-0}" != 1 ]; then bad="$bad mise"; fi
+if [ -z "$bad" ]; then pass "shell hooks are loaded for the installed tools"
+else warn "shell hooks not loaded:$bad" "rm -rf ~/.cache/zsh && zsh -l -i -c exit"; fi
 
 echo "== Prompt"
 # The prompt reads $STARSHIP_CONFIG, which users may set in ~/.zsh.local. Ask a login shell for it.
@@ -114,17 +123,31 @@ if command -v mise >/dev/null 2>&1; then
   nv="$(mise exec -- node -v 2>/dev/null)"
   [ -n "$nv" ] && pass "node $nv via mise" || warn "no node from mise" "mise use -g node@lts"
 fi
+# An init line is a command that starts a line: optionally behind "[ test ] &&", then eval, source or ".".
+# A lazy-load wrapper such as  pyenv() { eval "$(command pyenv init -)"; ... }  starts with the function name
+# and mentions the init command mid-line, so it never matches (it is the recommended fix, not a problem).
+slow_scan() { # slow_scan <file>: print the name of each startup-slowing tool initialised in that file
+  local file="$1" spec name pat
+  local head='^[[:space:]]*(\[\[?[^]]*\]\]?[[:space:]]*&&[[:space:]]*)?(eval|source|\\?\.)[[:space:]]+'
+  for spec in 'oh-my-zsh:oh-my-zsh\.sh' 'nvm:nvm\.sh' 'pyenv:pyenv init' 'rbenv:rbenv init' 'jenv:jenv init' \
+              'sdkman:sdkman-init' 'powerlevel10k:p10k|powerlevel10k'; do
+    name="${spec%%:*}"; pat="${spec#*:}"
+    grep -Eq "${head}.*(${pat})" "$file" && echo "$name"
+  done
+  grep -Eq '^# >>> conda initialize' "$file" && echo "conda"
+  grep -Eq '(^|[;&|])[[:space:]]*compinit([[:space:]]|$)' "$file" && echo "compinit"
+  return 0
+}
+
 echo "== Startup files you or other tools edited"
 hit=0
 for f in .zshrc .zshenv .zprofile .zsh.local; do
   p="$HOME/$f"; [ -f "$p" ] && [ ! -L "$p" ] || continue
   n="$(grep -vF -e "$STUB_MARK" -e ".config/fast-zsh/$f" "$p" | grep -Evc '^[[:space:]]*(#|$)')"
   [ "$f" != ".zsh.local" ] && [ "${n:-0}" -gt 0 ] && info "~/$f has $n line(s) added by other tools (kept across updates)"
-  for pat in 'oh-my-zsh' 'nvm\.sh|NVM_DIR' 'pyenv init' 'rbenv init' 'jenv init' 'conda initialize' 'compinit' 'sdkman-init' 'p10k|powerlevel10k'; do
-    if grep -Eq "$pat" "$p"; then
-      warn "~/$f contains '$pat' (slows every shell)" "remove it, or lazy-load it (see troubleshooting.md); mise replaces nvm"
-      hit=1
-    fi
+  for name in $(slow_scan "$p"); do
+    warn "~/$f initialises $name on every shell start (slow)" "if you did not add it on purpose, remove it or lazy-load it (troubleshooting.md); ask before deleting anything, mise replaces nvm"
+    hit=1
   done
 done
 [ "$hit" = 0 ] && pass "no slow init lines found"

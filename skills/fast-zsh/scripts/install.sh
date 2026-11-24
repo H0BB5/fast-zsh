@@ -79,51 +79,73 @@ fi
 # ── Config files ─────────────────────────────────────────────────
 step "Config -> $DEST"
 
-# Rescue lines other tools appended to the managed files. Older versions linked ~/.zshrc straight
-# into $DEST, so installers such as bun, gcloud and rustup wrote there, and the rsync below would
-# erase those lines. $DEST/.pristine holds the copy from the last install, so a diff against it
-# isolates exactly what was added.
+# Nothing a user typed into a managed file may disappear silently. $DEST/.pristine holds the exact
+# files from the last install, so a diff against it shows every hand edit, added module and deletion.
+# Older versions linked ~/.zshrc straight into $DEST, so installers such as bun, gcloud and rustup
+# also wrote into the three dotfiles. Lines added to those are carried into the real files below.
 RESCUE="$(mktemp -d)"
-legacy=0
 for f in .zshrc .zshenv .zprofile; do
   [ -f "$DEST/$f" ] || continue
   base=""
   if [ -f "$DEST/.pristine/$f" ]; then base="$DEST/.pristine/$f"
   elif [ -f "$SKILL_DIR/scripts/legacy/$f" ]; then base="$SKILL_DIR/scripts/legacy/$f"   # v0.1.0 and v0.2.0 shipped these exact files
   fi
-  if [ -n "$base" ]; then
-    diff "$base" "$DEST/$f" | sed -n 's/^> //p' > "$RESCUE/$f"
-  elif ! cmp -s "$DEST/$f" "$CONFIG_SRC/$f"; then
-    # No baseline to diff against: keep the whole file for the user to compare.
-    run mkdir -p "$BACKUP/legacy-managed"
-    run cp "$DEST/$f" "$BACKUP/legacy-managed/$f"
-    legacy=1
-  fi
+  [ -n "$base" ] && diff "$base" "$DEST/$f" | sed -n 's/^> //p' > "$RESCUE/$f"
 done
+
+managed_changed=""
+if [ -f "$DEST/.pristine/.full" ]; then
+  managed_changed="$(diff -rq "$DEST/.pristine" "$DEST" -x .pristine -x .full 2>/dev/null | sed "s|$DEST/.pristine|<last install>|g; s|$DEST|<managed>|g")"
+fi
+if [ -d "$DEST" ] && { [ -n "$managed_changed" ] || [ ! -f "$DEST/.pristine/.full" ]; }; then
+  # Keep the previous managed copy. For an install made before full pristine copies existed this is
+  # the only record of what was there.
+  run mkdir -p "$BACKUP/managed-before-update"
+  run rsync -a --exclude .pristine "$DEST/" "$BACKUP/managed-before-update/"
+  if [ -n "$managed_changed" ]; then
+    [ "$DRY" = 1 ] && verb="would be saved" || verb="are saved"
+    say "  Files under $DEST were edited. The update overwrites them; your versions $verb in:"
+    say "    $BACKUP/managed-before-update"
+    printf '%s\n' "$managed_changed" | head -8 | sed 's/^/    /'
+    say "  Move what you want to keep into ~/.zsh.local. Lines added to ~/.zshrc, ~/.zshenv or ~/.zprofile are carried over automatically."
+  fi
+fi
 
 run mkdir -p "$DEST"
 run rsync -a --delete --exclude .pristine "$CONFIG_SRC/" "$DEST/"
 run mkdir -p "$DEST/.pristine"
-for f in .zshrc .zshenv .zprofile; do run cp "$CONFIG_SRC/$f" "$DEST/.pristine/$f"; done
+run rsync -a --delete "$CONFIG_SRC/" "$DEST/.pristine/"
+run touch "$DEST/.pristine/.full"
 [ "$DRY" = 1 ] || say "  copied (personal changes belong in ~/.zsh.local; this directory is overwritten on update)"
-[ "$legacy" = 1 ] && say "  note: your previous managed files are saved in $BACKUP/legacy-managed, compare them if you edited them by hand"
 
 # ~/.zshrc, ~/.zshenv and ~/.zprofile stay REAL files that load the managed copy. Tools that append
 # to them (bun, gcloud, rustup, Homebrew's installer) then write into a file updates never touch.
 STUB_MARK="# fast-zsh: loads the managed config."
+KEPT_HEADER="# Lines you or a tool added to the managed file, carried over by the update:"
 backed_up=0
+
+carry() { # carry <dotfile-name> <real-path>: move lines typed into a managed dotfile into the real file
+  local name="$1" path="$2" n
+  [ -s "$RESCUE/$name" ] || return 0
+  n="$(wc -l < "$RESCUE/$name" | tr -d ' ')"
+  if [ "$DRY" = 1 ]; then say "  [dry-run] carry over $n line(s) added to the managed $name"; return 0; fi
+  { printf '\n%s\n' "$KEPT_HEADER"; cat "$RESCUE/$name"; } >> "$path"
+  say "  kept     $n line(s) added to the managed $name, now in $path"
+}
+
 stub() { # stub <dotfile-name>
   local name="$1" path="$HOME/$1"
   local l1="$STUB_MARK Lines other tools append below are kept across updates."
   local l2="[[ -r \"\$HOME/.config/fast-zsh/$name\" ]] && source \"\$HOME/.config/fast-zsh/$name\""
 
   if [ -f "$path" ] && [ ! -L "$path" ] && grep -qF "$STUB_MARK" "$path"; then
-    if grep -qF "$l2" "$path"; then say "  ok       $path"; return; fi
+    if grep -qF "$l2" "$path"; then say "  ok       $path"; carry "$name" "$path"; return; fi
     # Marker present but the source line is gone (a tool rewrote the file): restore it at the top.
     if [ "$DRY" = 1 ]; then say "  [dry-run] restore source line in $path"; else
       { printf '%s\n%s\n' "$l1" "$l2"; grep -vF "$STUB_MARK" "$path"; } > "$path.fz-tmp" && mv "$path.fz-tmp" "$path"
       say "  repaired $path"
     fi
+    carry "$name" "$path"
     return
   fi
 
@@ -138,16 +160,10 @@ stub() { # stub <dotfile-name>
   fi
 
   if [ "$DRY" = 1 ]; then say "  [dry-run] write $path"; else
-    {
-      printf '%s\n%s\n' "$l1" "$l2"
-      if [ -s "$RESCUE/$name" ]; then
-        printf '\n# Lines other tools had added to the managed file, kept during migration:\n'
-        cat "$RESCUE/$name"
-      fi
-    } > "$path"
+    printf '%s\n%s\n' "$l1" "$l2" > "$path"
     say "  write    $path"
-    [ -s "$RESCUE/$name" ] && say "  kept     $(wc -l < "$RESCUE/$name" | tr -d ' ') line(s) other tools had added to the managed $name"
   fi
+  carry "$name" "$path"
 }
 stub .zshrc
 stub .zshenv

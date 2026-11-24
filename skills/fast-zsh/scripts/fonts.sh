@@ -38,9 +38,15 @@ gh_value() {
 # judge <label> <font name or PostScript name>
 judge() {
   case "$2" in
-    *Propo*|*NFP*) fail "$1 uses a Propo font ('$2')" "pick a Mono variant: $FAMILY" ;;
+    *Propo*|*NFP*)
+      # Proportional widths break a terminal's grid whatever the prompt draws, so it always matters;
+      # it only fails the doctor when the icon prompt depends on the font.
+      if icons_on; then fail "$1 uses a Propo font ('$2')" "pick a Mono variant: $FAMILY"
+      else warn "$1 uses a Propo font ('$2'): glyph widths vary and break the grid" "pick a Mono variant: $FAMILY"; fi ;;
     *"Nerd Font Mono"*|*NFM*) pass "$1: $2" ;;
-    *NerdFont*|*"Nerd Font"*|*NF-*) warn "$1 uses a non-Mono Nerd Font ('$2'): icons can spill over their cell" "pick $FAMILY" ;;
+    *NerdFont*|*"Nerd Font"*|*NF-*)
+      if icons_on; then warn "$1 uses a non-Mono Nerd Font ('$2'): icons can spill over their cell" "pick $FAMILY"
+      else info "$1: '$2' is a non-Mono Nerd Font (icons can spill over a cell; only matters with the icon prompt)"; fi ;;
     *)
       if icons_on; then warn "$1 uses '$2', which is not a Nerd Font, so the branch icon shows as a box" "pick $FAMILY"
       else info "$1: '$2' is not a Nerd Font (only matters for the icon prompt)"; fi ;;

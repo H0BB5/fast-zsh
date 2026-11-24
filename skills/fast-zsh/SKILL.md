@@ -20,7 +20,8 @@ Scripts are idempotent and back up anything they replace to `~/.config-backups/f
    `--skip-node` is for users who manage node some other way.
    `--hushlogin` hides the "Last login" banner.
 3. Read the doctor report at the end of the install.
-   Fix every WARN and FAIL using the `fix:` line under it, and `references/troubleshooting.md` for anything the hint does not cover.
+   Work through every WARN and FAIL using the `fix:` line under it, and `references/troubleshooting.md` for anything the hint does not cover.
+   A warning can be intentional, so show the user the line it points at before you change or delete it.
    Re-run `scripts/doctor.sh` until it reports 0 fail.
 4. Port the user's old config.
    The installer lists what it found in the backed-up files (aliases, exports, nvm, pyenv, possible secrets).
@@ -36,7 +37,7 @@ Scripts are idempotent and back up anything they replace to `~/.config-backups/f
 
 Run `scripts/doctor.sh`.
 It checks tools, the startup files, startup errors, completion permissions, PATH duplicates, node through mise, terminal fonts and startup time, and prints a `fix:` line per problem.
-Apply the fix, re-run, and stop when it reports 0 fail.
+Apply each fix that is clearly safe, ask about the rest, re-run, and stop when it reports 0 fail and the user has seen every warning left.
 
 For font and rendering problems run `scripts/fonts.sh check`, which reads the real settings of Ghostty, cmux, iTerm and Terminal.app.
 `scripts/fonts.sh apply` fixes Ghostty and cmux (they share `~/.config/ghostty/config`) and prints the steps for iTerm and Terminal.app, which keep the font in the profile.
@@ -53,6 +54,8 @@ Re-run `scripts/install.sh`: it migrates the file and keeps any lines other tool
   Files in `~/.config/fast-zsh` are overwritten on every update, so never edit them.
 - Never print or paste secrets from the user's old config into chat, and keep `~/.zsh.local` at mode 600.
 - Ask before running `sudo`, deleting `~/.nvm`, `~/.pyenv` or `~/.oh-my-zsh`, or changing anything outside the shell config.
+- Never delete or rewrite a line of the user's own config just because a check flagged it.
+  Show the line, explain the cost, and let the user decide.
 - If a fix would help every teammate, tell the user to propose it in the shared repo instead of patching one machine.
 - macOS only.
   On Linux, stop and say it is untested.
