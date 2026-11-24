@@ -104,7 +104,9 @@ scripts/customize.sh theme moonfly/default
 
 This writes the colors to `~/.config/ghostty/config`, which both Ghostty and cmux read, imports the preset into iTerm and the profile into Terminal.app, and gives the Terminal.app profile the Nerd Font.
 Use `--no-ghostty`, `--no-iterm` or `--no-terminal` to skip a terminal the user does not use.
-Terminal files are untrusted downloads: the script keeps only strictly validated color lines for Ghostty and lints the plist files before the apps open them.
+Terminal files are untrusted downloads: the script keeps only strictly validated color lines for Ghostty.
+It opens an iTerm preset or a Terminal.app profile only when the file parses and every setting in it is a color, the font or a profile field.
+A Terminal.app profile can carry a command that runs when Terminal opens it, so a file with any other setting is refused, and the script says which settings it found.
 
 Then tell the user the clicks the script cannot do:
 

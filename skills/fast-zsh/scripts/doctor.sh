@@ -108,7 +108,11 @@ if command -v starship >/dev/null 2>&1 && command -v git >/dev/null 2>&1; then
   git -C "$pd" init -q -b main 2>/dev/null && git -C "$pd" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i 2>/dev/null
   branch_out="$(cd "$pd" && starship module git_branch 2>&1)"
   rm -rf "$pd"
-  if printf '%s' "$branch_out" | grep -q "$(printf '\033')\[[0-9;]*m[^$(printf '\033')]*main"; then
+  # Require a color code (foreground 30-37, 90-97, 38;..., or background 40-47, 100-107, 48;...) as the last
+  # escape before the branch name; the branch symbol (icon prompt) may sit in between. With an unknown color name
+  # starship prints the reset code ESC[0m there instead, which a looser pattern mistook for a color.
+  esc="$(printf '\033')"
+  if printf '%s' "$branch_out" | grep -Eq "${esc}\[([0-9]+;)*(3[0-7]|4[0-7]|9[0-7]|10[0-7]|[34]8;[0-9;]+)m[^${esc}]*main"; then
     pass "git branch is colored in the prompt"
   else
     warn "git branch renders with no color" "an invalid color name in your starship config is ignored silently; valid names are black red green blue purple cyan white yellow (there is no 'magenta'), see references/prompt.md"

@@ -22,6 +22,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ZSH_LOCAL="$HOME/.zsh.local"
 GH_CONFIG="$HOME/.config/ghostty/config"
 THEMES_URL="https://terminalcolors.com/themes/"
+# The only top-level settings a downloaded theme may carry. A Terminal.app profile can also hold a command
+# Terminal runs when it opens the profile (CommandString) or a different shell (Shell), so a file with any
+# other setting is refused. Published themes hold colors, the font and a few profile fields.
+TERMINAL_KEYS='^(.+Color|Font|FontAntialias|FontWidthSpacing|FontHeightSpacing|ProfileCurrentVersion|TerminalType|name|type)$'
+ITERM_KEYS='^.+ Color( \((Light|Dark)\))?$'
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'customize.sh: %s\n' "$*" >&2; exit 1; }
@@ -54,7 +59,12 @@ cmd_starship() {
       --git) need "$@"; git="$2"; shift 2 ;;
       --icons) icons=1; shift ;;
       --dir) need "$@"; dir="$2"; shift 2 ;;
-      --extras) extras="${2-}"; shift 2 ;;
+      --extras)
+        # An empty multi-select can produce a bare --extras. Treat it as "no extras": `shift 2` with one
+        # argument left shifts nothing in bash, which looped forever.
+        extras=""
+        if [ $# -ge 2 ]; then case "$2" in --*) ;; *) extras="$2"; shift ;; esac; fi
+        shift ;;
       --out) need "$@"; out="$2"; shift 2 ;;
       --dry-run) dry=1; shift ;;
       *) die "unknown starship option: $1" ;;
@@ -231,6 +241,18 @@ EOF
 }
 
 # ── terminal theme ───────────────────────────────────────────────
+# plist_extra_keys <file> <ERE>: print the top-level settings that do not match <ERE>, and fail if there are any.
+# `plutil -lint` only proves a file parses. The XML form indents top-level keys with exactly one tab, so they
+# can be listed without a plist library; nested keys (inside an iTerm color) are indented further.
+plist_extra_keys() {
+  local tab keys extra
+  tab="$(printf '\t')"
+  keys="$(plutil -convert xml1 -o - "$1" 2>/dev/null | sed -n "s/^${tab}<key>\(.*\)<\/key>\$/\1/p")"
+  if [ -z "$keys" ]; then echo "not a settings dictionary"; return 1; fi
+  extra="$(printf '%s\n' "$keys" | grep -Ev "$2" | tr '\n' ' ' | sed 's/ $//')"
+  [ -z "$extra" ] || { printf '%s\n' "$extra"; return 1; }
+}
+
 cmd_theme() {
   local arg1="${1-}" arg2="" check=0 gh=1 it=1 tm=1 dry=0
   [ -n "$arg1" ] || die "usage: customize.sh theme <theme>[/<variant>]   (browse $THEMES_URL)"
@@ -266,8 +288,8 @@ cmd_theme() {
     say "would download $gh_url"; [ "$it" = 1 ] && say "would import $it_url into iTerm"; [ "$tm" = 1 ] && say "would import $tm_url into Terminal.app"; return 0
   fi
 
-  # Downloads are untrusted data: each goes into its own new directory, only an allow-list of lines is used,
-  # and plist files are linted before the apps open them.
+  # Downloads are untrusted data: each goes into its own new directory, only an allow-list of lines is used
+  # for Ghostty, and a plist file is opened only when it parses and every setting in it is on an allow-list.
   local d; d="$(mktemp -d)"
   if [ "$gh" = 1 ] && { [ -d /Applications/Ghostty.app ] || [ -d /Applications/cmux.app ] || [ -f "$GH_CONFIG" ]; }; then
     "${fetch[@]}" -o "$d/ghostty" "$gh_url" || { rm -rf "$d"; die "could not download $theme/$variant. Check the name at ${THEMES_URL}"; }
@@ -283,21 +305,27 @@ EOF
   fi
   if [ "$it" = 1 ] && [ -d /Applications/iTerm.app ]; then
     if "${fetch[@]}" -o "$d/$slug.itermcolors" "$it_url" 2>/dev/null && plutil -lint "$d/$slug.itermcolors" >/dev/null 2>&1; then
-      open -a iTerm "$d/$slug.itermcolors" && say "iTerm: imported the color preset. Select it once: Settings > Profiles > Colors > Color Presets > $theme."
+      if extra="$(plist_extra_keys "$d/$slug.itermcolors" "$ITERM_KEYS")"; then
+        open -a iTerm "$d/$slug.itermcolors" && say "iTerm: imported the color preset. Select it once: Settings > Profiles > Colors > Color Presets > $theme."
+      else say "iTerm: the preset for $theme/$variant holds more than colors ($extra), so it was not imported"; fi
     else say "iTerm: no preset published for $theme/$variant, skipped"; fi
   fi
   if [ "$tm" = 1 ]; then
     if "${fetch[@]}" -o "$d/$slug.terminal" "$tm_url" 2>/dev/null && plutil -lint "$d/$slug.terminal" >/dev/null 2>&1; then
-      open -a Terminal "$d/$slug.terminal" && say "Terminal.app: imported the profile '$slug'. Make it the default once: Settings > Profiles > $slug > Default."
-      sleep 4
-      if find -L "$HOME/Library/Fonts" /Library/Fonts -maxdepth 1 -name 'JetBrainsMonoNerdFontMono-*' 2>/dev/null | grep -q .; then
-        # The imported profile brings its own font. Give it the Nerd Font so icons render (cannot hang: 25s cap).
-        osascript -e "tell application \"Terminal\" to set font name of settings set \"$slug\" to \"JetBrainsMonoNFM-Regular\"" \
-                  -e "tell application \"Terminal\" to set font size of settings set \"$slug\" to 12" >/dev/null 2>&1 &
-        local pid=$! i=0
-        while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 25 ]; do sleep 1; i=$((i + 1)); done
-        if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; say "Terminal.app: could not set the font (needs an Automation approval). Set it by hand: Settings > Profiles > $slug > Text > Font."
-        else say "Terminal.app: set the profile font to JetBrainsMono Nerd Font Mono."; fi
+      if ! extra="$(plist_extra_keys "$d/$slug.terminal" "$TERMINAL_KEYS")"; then
+        say "Terminal.app: the profile for $theme/$variant holds settings other than colors and font ($extra), so it was not imported"
+      else
+        open -a Terminal "$d/$slug.terminal" && say "Terminal.app: imported the profile '$slug'. Make it the default once: Settings > Profiles > $slug > Default."
+        sleep 4
+        if find -L "$HOME/Library/Fonts" /Library/Fonts -maxdepth 1 -name 'JetBrainsMonoNerdFontMono-*' 2>/dev/null | grep -q .; then
+          # The imported profile brings its own font. Give it the Nerd Font so icons render (cannot hang: 25s cap).
+          osascript -e "tell application \"Terminal\" to set font name of settings set \"$slug\" to \"JetBrainsMonoNFM-Regular\"" \
+                    -e "tell application \"Terminal\" to set font size of settings set \"$slug\" to 12" >/dev/null 2>&1 &
+          local pid=$! i=0
+          while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 25 ]; do sleep 1; i=$((i + 1)); done
+          if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; say "Terminal.app: could not set the font (needs an Automation approval). Set it by hand: Settings > Profiles > $slug > Text > Font."
+          else say "Terminal.app: set the profile font to JetBrainsMono Nerd Font Mono."; fi
+        fi
       fi
     else say "Terminal.app: no profile published for $theme/$variant, skipped"; fi
   fi
