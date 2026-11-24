@@ -2,28 +2,34 @@
 # Installs the fast-zsh config. Idempotent: safe to re-run to update.
 # Works with the macOS system bash (3.2).
 #
-#   install.sh [--dry-run] [--no-brew] [--skip-node] [--hushlogin]
+#   install.sh [--dry-run] [--no-brew] [--skip-node] [--hushlogin] [--icons] [--git-delta]
 #
 #   --dry-run     print every action, change nothing
 #   --no-brew     do not install Homebrew packages (use when they are already present)
 #   --skip-node   do not install a global node through mise
 #   --hushlogin   create ~/.hushlogin to hide the "Last login" banner
+#   --icons       use the prompt variant with a branch icon, and install a Nerd Font
+#                 (the terminal profile must then be set to that font)
+#   --git-delta   install git-delta and make it git's pager (only if core.pager is unset)
 set -u
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_SRC="$SKILL_DIR/config"
 DEST="$HOME/.config/fast-zsh"
 BACKUP="$HOME/.config-backups/fast-zsh-$(date +%Y%m%d-%H%M%S)"
-FORMULAE="starship zoxide eza fd fzf mise hyperfine zsh-autosuggestions zsh-syntax-highlighting zsh-completions"
+FORMULAE="starship zoxide eza fd fzf bat mise hyperfine zsh-autosuggestions zsh-syntax-highlighting zsh-completions"
+FONT_CASK="font-jetbrains-mono-nerd-font"
 
-DRY=0; NO_BREW=0; SKIP_NODE=0; HUSH=0
+DRY=0; NO_BREW=0; SKIP_NODE=0; HUSH=0; ICONS=0; GIT_DELTA=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY=1 ;;
     --no-brew) NO_BREW=1 ;;
     --skip-node) SKIP_NODE=1 ;;
     --hushlogin) HUSH=1 ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    --icons) ICONS=1 ;;
+    --git-delta) GIT_DELTA=1 ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "unknown flag: $arg" >&2; exit 2 ;;
   esac
 done
@@ -62,6 +68,12 @@ else
     printf '%s\n' "$installed" | grep -qx "$f" || missing="$missing $f"
   done
   if [ -z "$missing" ]; then say "  all present"; else say "  installing:$missing"; run brew install $missing; fi
+  if [ "$GIT_DELTA" = 1 ] && ! printf '%s\n' "$installed" | grep -qx git-delta; then
+    say "  installing: git-delta"; run brew install git-delta
+  fi
+  if [ "$ICONS" = 1 ] && ! brew list --cask -1 2>/dev/null | grep -qx "$FONT_CASK"; then
+    say "  installing font: $FONT_CASK"; run brew install --cask "$FONT_CASK"
+  fi
 fi
 
 # ── Config files ─────────────────────────────────────────────────
@@ -87,7 +99,8 @@ link() { # link <target> <link-path>
 link "$DEST/.zshrc"        "$HOME/.zshrc"
 link "$DEST/.zshenv"       "$HOME/.zshenv"
 link "$DEST/.zprofile"     "$HOME/.zprofile"
-link "$DEST/starship.toml" "$HOME/.config/starship.toml"
+if [ "$ICONS" = 1 ]; then STARSHIP_CFG="starship-icons.toml"; else STARSHIP_CFG="starship.toml"; fi
+link "$DEST/$STARSHIP_CFG" "$HOME/.config/starship.toml"
 
 # ── Leftovers from the old config ────────────────────────────────
 if [ "$backed_up" = 1 ] && [ "$DRY" = 0 ]; then
@@ -162,6 +175,19 @@ fi
 # ── Optional ─────────────────────────────────────────────────────
 if [ "$HUSH" = 1 ]; then run touch "$HOME/.hushlogin"; say "  created ~/.hushlogin"; fi
 
+if [ "$GIT_DELTA" = 1 ]; then
+  step "git-delta"
+  if [ -n "$(git config --global --get core.pager 2>/dev/null)" ]; then
+    say "  core.pager is already set to '$(git config --global --get core.pager)', left alone"
+  else
+    run git config --global core.pager delta
+    run git config --global interactive.diffFilter 'delta --color-only'
+    run git config --global delta.navigate true
+    run git config --global delta.line-numbers true
+    say "  git now pages diffs through delta (alias gdd = side-by-side)"
+  fi
+fi
+
 # ── Warm caches and verify ───────────────────────────────────────
 if [ "$DRY" = 0 ]; then
   step "Warming caches"
@@ -170,6 +196,11 @@ if [ "$DRY" = 0 ]; then
   step "Doctor"
   "$SKILL_DIR/scripts/doctor.sh" || true
   say ""
+  if [ "$ICONS" = 1 ]; then
+    say "Icons: set your terminal font to 'JetBrainsMono Nerd Font Mono' or the branch icon shows as a box."
+    say "  iTerm:   Settings > Profiles > Text > Font"
+    say "  Ghostty: add  font-family = \"JetBrainsMono Nerd Font Mono\"  to ~/.config/ghostty/config"
+  fi
   say "Open a new terminal tab to start using it."
   [ "$backed_up" = 1 ] && say "Rollback: $SKILL_DIR/scripts/uninstall.sh"
 fi

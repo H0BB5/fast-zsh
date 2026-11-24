@@ -16,6 +16,7 @@ alias gc='git commit -m' gca='git commit -am'
 alias gp='git push' gpl='git pull --rebase --autostash'
 alias gsw='git switch' gb='git branch'
 alias gl='git log --oneline --graph --decorate -20'
+(( $+commands[delta] )) && alias gdd='git -c delta.side-by-side=true diff'   # wide side-by-side diff
 
 # Misc
 alias reload='exec zsh'

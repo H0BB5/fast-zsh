@@ -9,6 +9,7 @@ QUICK=0; [ "${1:-}" = "--quick" ] && QUICK=1
 DEST="$HOME/.config/fast-zsh"
 PASS=0; WARN=0; FAIL=0
 pass() { PASS=$((PASS+1)); printf '  PASS  %s\n' "$*"; }
+info() { printf '  INFO  %s\n' "$*"; }
 warn() { WARN=$((WARN+1)); printf '  WARN  %s\n' "$1"; [ -n "${2:-}" ] && printf '        fix: %s\n' "$2"; }
 fail() { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        fix: %s\n' "$2"; }
 
@@ -26,6 +27,7 @@ for t in starship zoxide eza fd fzf mise; do
   command -v "$t" >/dev/null 2>&1 && pass "$t" || fail "$t missing" "brew install $t"
 done
 command -v hyperfine >/dev/null 2>&1 && pass "hyperfine" || warn "hyperfine missing (only needed for zshbench)" "brew install hyperfine"
+command -v bat >/dev/null 2>&1 && pass "bat" || warn "bat missing (fzf file previews fall back to nothing)" "brew install bat"
 for p in zsh-autosuggestions/zsh-autosuggestions.zsh zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
   [ -r "${HOMEBREW_PREFIX:-/opt/homebrew}/share/$p" ] && pass "plugin ${p%%/*}" || fail "plugin ${p%%/*} missing" "brew install ${p%%/*}"
 done
@@ -40,7 +42,17 @@ chk() { # chk <link-path> <expected-target>
 chk "$HOME/.zshrc" "$DEST/.zshrc"
 chk "$HOME/.zshenv" "$DEST/.zshenv"
 chk "$HOME/.zprofile" "$DEST/.zprofile"
-chk "$HOME/.config/starship.toml" "$DEST/starship.toml"
+sl="$(readlink "$HOME/.config/starship.toml" 2>/dev/null)"
+if [ "$sl" = "$DEST/starship-icons.toml" ]; then
+  pass "$HOME/.config/starship.toml -> $sl"
+  info "icon prompt is on: the terminal font must be 'JetBrainsMono Nerd Font Mono' (or another Nerd Font)"
+else
+  chk "$HOME/.config/starship.toml" "$DEST/starship.toml"
+fi
+if command -v delta >/dev/null 2>&1; then
+  if [ "$(git config --global --get core.pager 2>/dev/null)" = "delta" ]; then pass "git pages diffs through delta"
+  else info "delta is installed but git does not use it (optional: install.sh --git-delta)"; fi
+fi
 if [ -e "$HOME/.zsh.local" ]; then
   perm="$(ls -l "$HOME/.zsh.local" | cut -c1-10)"
   [ "$perm" = "-rw-------" ] && pass "~/.zsh.local mode 600" || warn "~/.zsh.local is $perm" "chmod 600 ~/.zsh.local"

@@ -31,13 +31,22 @@ cd fast-zsh
 ./install.sh
 ```
 
+Options, all off by default:
+
+```
+./install.sh --icons        # branch icon in the prompt, installs a Nerd Font (set it in your terminal)
+./install.sh --git-delta    # git pages diffs through delta
+./install.sh --skip-node    # leave node alone
+./install.sh --hushlogin    # hide the "Last login" banner
+```
+
 The installer backs up every file it replaces to `~/.config-backups/fast-zsh-<timestamp>/`.
 It can be re-run at any time to update.
 When it finishes it runs the doctor, and `skills/fast-zsh/scripts/doctor.sh` runs it again whenever you want.
 
 ## What it installs
 
-Homebrew packages: starship, zoxide, eza, fd, fzf, mise, hyperfine, zsh-autosuggestions, zsh-syntax-highlighting, zsh-completions.
+Homebrew packages: starship, zoxide, eza, fd, fzf, bat, mise, hyperfine, zsh-autosuggestions, zsh-syntax-highlighting, zsh-completions.
 Links from `~/.zshrc`, `~/.zshenv`, `~/.zprofile` and `~/.config/starship.toml` into `~/.config/fast-zsh/`.
 A global node through mise, with `.nvmrc` and `.node-version` support switched on.
 An empty `~/.zsh.local` for your own aliases, PATH entries and secrets.
@@ -48,10 +57,12 @@ An empty `~/.zsh.local` for your own aliases, PATH entries and secrets.
 |---|---|
 | `z foo`, `zi foo` | Jump to the best matching directory you have visited, or pick from a list |
 | Ctrl-R | Fuzzy search the shared 200,000-line history |
-| Ctrl-T, Alt-C | Fuzzy-pick a file path, or a directory to cd into |
+| Ctrl-T, Alt-C | Fuzzy-pick a file path, or a directory to cd into, with a file or tree preview |
+| Ctrl-/ | Toggle the preview pane (in Ctrl-R it shows the full command) |
 | Right arrow | Accept the grey suggestion |
 | `ll`, `la`, `lt` | eza listings, with git status and a two-level tree |
 | `gs`, `gd`, `gp`, `gpl`, `gl`, `lg` | git status, diff, push, pull --rebase, log, lazygit |
+| `gdd` | Side-by-side diff through delta (when delta is installed) |
 | `mkcd`, `ports`, `killport 3000` | Make and enter a directory, list listeners, stop one |
 | `reload`, `zshprof`, `zshbench` | Restart zsh, profile startup, time startup |
 
@@ -67,15 +78,21 @@ Put your own configuration in `~/.zsh.local`.
 It loads last, so it overrides anything here, and it is never touched by an update.
 Files under `~/.config/fast-zsh` are overwritten on update, so do not edit them.
 
-Prompt presets are one command away:
+The prompt has two lines: directory, branch and git status on top, the input line below.
+Branch names longer than 36 characters are cut with an ellipsis.
+The default needs no special font.
+`./install.sh --icons` adds a branch icon, which needs a Nerd Font set in the terminal profile.
+`skills/fast-zsh/references/troubleshooting.md` has the steps for iTerm and Ghostty.
+
+Starship presets are one command away:
 
 ```
 starship preset --list
 starship preset tokyo-night -o ~/.config/starship.toml   # replaces the link with a real file
 ```
 
-The prompt needs no special font.
-Presets that draw icons need a Nerd Font in your terminal profile, and `references/troubleshooting.md` has the steps.
+Presets that draw icons or colored segments need a Nerd Font too.
+A real file at `~/.config/starship.toml` is yours to keep, and the installer backs it up before replacing it.
 
 ## Update and roll back
 
@@ -90,7 +107,7 @@ install.sh             wrapper for skills/fast-zsh/scripts/install.sh
 skills/fast-zsh/
   SKILL.md             instructions the agent follows
   scripts/             install.sh, doctor.sh, uninstall.sh
-  config/              the files that get installed
+  config/              the files that get installed (starship.toml, starship-icons.toml, zsh modules)
   references/          troubleshooting guide
 ```
 

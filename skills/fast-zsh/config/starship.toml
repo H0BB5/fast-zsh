@@ -1,11 +1,12 @@
-# Mirrors the old zap-prompt look (⚡➜ dir (branch)) but runs in Rust with a hard time budget.
+# Two lines: location and git on top, input below. Plain Unicode only, so any terminal font works.
+# For a branch icon, install with --icons (starship-icons.toml, needs a Nerd Font).
 "$schema" = 'https://starship.rs/config-schema.json'
 
 add_newline = false
 command_timeout = 500
 scan_timeout = 30
 
-format = "$directory$git_branch$git_status$cmd_duration$character"
+format = "$directory$git_branch$git_status$cmd_duration$line_break$character"
 
 [character]
 success_symbol = "[⚡➜](bold green) "
@@ -19,6 +20,8 @@ style = "bold cyan"
 [git_branch]
 format = "[\\(](blue)[$branch]($style)[\\)](blue) "
 style = "bold magenta"
+truncation_length = 36
+truncation_symbol = "…"
 
 [git_status]
 format = '([$all_status$ahead_behind]($style) )'
@@ -28,7 +31,7 @@ style = "bold yellow"
 min_time = 2000
 format = "[$duration]($style) "
 
-# Everything below probes the filesystem on every prompt for little value. Off.
+# Everything below probes the filesystem (and often forks the tool) on every prompt. Off.
 [package]
 disabled = true
 [docker_context]

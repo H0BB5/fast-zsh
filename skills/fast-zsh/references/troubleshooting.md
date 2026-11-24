@@ -60,19 +60,33 @@ Read the file, then run `mise trust` in that directory.
 
 ## Boxes or question marks in the prompt
 
-The prompt uses plain Unicode (the lightning bolt and arrow) and ASCII git markers, so a Nerd Font is not required.
-If a glyph still shows as a box, the terminal font lacks it.
-Install a Nerd Font and select it:
+The default prompt uses plain Unicode (the lightning bolt and arrow) and ASCII git markers, so any font works.
+The icon variant (`install.sh --icons`) draws a branch icon that needs a Nerd Font.
+A box where the icon belongs means the terminal profile is not using one.
+The installer adds the font with `brew install --cask font-jetbrains-mono-nerd-font`, and the terminal still has to select it:
 
-```
-brew install --cask font-jetbrains-mono-nerd-font
-```
+- iTerm: Settings > Profiles > Text > Font, then pick "JetBrainsMono Nerd Font Mono".
+- Ghostty: add `font-family = "JetBrainsMono Nerd Font Mono"` to `~/.config/ghostty/config`.
+  On macOS Ghostty also reads `~/Library/Application Support/com.mitchellh.ghostty/config.ghostty`, which overrides the first file.
+  Reload with Cmd-Shift-comma or restart.
 
-In iTerm: Settings > Profiles > Text > Font.
-In Ghostty: `font-family = "JetBrainsMono Nerd Font"` in `~/.config/ghostty/config`.
+To go back to the plain prompt, re-run `install.sh` without `--icons`.
 
 A literal `??` in `git status -sb` output is git's marker for an untracked file and is not a font problem.
 The same applies to `?`, `!`, `$` and the arrows after the branch name in the prompt: untracked, modified, stashed, ahead or behind.
+
+## Diffs look wrong after enabling git-delta
+
+`install.sh --git-delta` sets four global git options: `core.pager`, `interactive.diffFilter`, `delta.navigate` and `delta.line-numbers`.
+Side-by-side is off by default because it wraps badly in narrow panes.
+`gdd` shows one diff side by side.
+To undo everything:
+
+```
+git config --global --unset core.pager
+git config --global --unset interactive.diffFilter
+git config --global --remove-section delta
+```
 
 ## Alt-C does nothing
 

@@ -13,9 +13,12 @@ Scripts are idempotent and back up anything they replace to `~/.config-backups/f
 
 1. Run `scripts/install.sh --dry-run` and read the output.
    It lists what it would install, replace and back up.
-2. Run `scripts/install.sh`.
-   Add `--skip-node` if the user manages node some other way.
-   Add `--hushlogin` if they want the "Last login" banner gone.
+2. Ask the user which optional pieces they want, then run `scripts/install.sh` with the matching flags.
+   `--icons` swaps in the prompt with a branch icon and installs a Nerd Font.
+   It only looks right once the terminal profile uses that font, so walk the user through setting it (steps are printed at the end of the install).
+   `--git-delta` makes delta git's pager for colored, line-numbered diffs, and does nothing if `core.pager` is already set.
+   `--skip-node` is for users who manage node some other way.
+   `--hushlogin` hides the "Last login" banner.
 3. Read the doctor report at the end of the install.
    Fix every WARN and FAIL using the `fix:` line under it, and `references/troubleshooting.md` for anything the hint does not cover.
    Re-run `scripts/doctor.sh` until it reports 0 fail.
@@ -24,8 +27,9 @@ Scripts are idempotent and back up anything they replace to `~/.config-backups/f
    Read those files in the backup directory and move what the user still wants into `~/.zsh.local`.
    Drop the nvm, oh-my-zsh and pyenv init lines, and tell the user mise replaces nvm (`.nvmrc` still works).
 5. Ask the user to open a new terminal tab and check the prompt.
-   If it feels slow, run `zshprof` and fix the top entry.
-6. Report what changed, the backup path, how to roll back (`scripts/uninstall.sh`), and the few habits worth learning: `z <fragment>` to jump to a directory, Ctrl-R for fuzzy history, Ctrl-T for files.
+   If they chose `--icons` and see a box where the branch icon should be, the terminal font is wrong (see troubleshooting).
+   If startup feels slow, run `zshprof` and fix the top entry.
+6. Report what changed, the backup path, how to roll back (`scripts/uninstall.sh`), and the few habits worth learning: `z <fragment>` to jump to a directory, Ctrl-R for fuzzy history, Ctrl-T for files with a preview, Ctrl-/ to toggle previews.
 
 ## Repair
 
