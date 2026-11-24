@@ -69,6 +69,18 @@ To go back to the plain prompt, re-run `install.sh` without `--icons`.
 A literal `??` in `git status -sb` output is git's marker for an untracked file and is not a font problem.
 The same applies to `?`, `!`, `$` and the arrows after the branch name in the prompt: untracked, modified, stashed, ahead or behind.
 
+## Icons look small or crowd the number next to them
+
+The Mono variant of a Nerd Font scales every icon to fit one terminal cell.
+Measured on JetBrainsMono: the pencil, archive box and trash icons are 600 units wide in a 600-unit cell, so the ink touches both edges, and they come out about as wide as a letter.
+The non-Mono variant draws the same icons about 1.5 times larger (the pencil is 929 units wide).
+
+The git status icons in these configs are followed by a space and then the count, so the icon never touches a digit.
+For larger icons, pick the non-Mono family in the terminal: "JetBrainsMono Nerd Font", or "JetBrainsMonoNL Nerd Font" without ligatures.
+Each icon then spills into the blank space after it, which is why every icon has one.
+Some terminals clip a glyph at its cell edge, which cuts the icon off, so check it in your terminal before keeping it.
+`fonts.sh check` warns about a non-Mono family while the icon prompt is on, because an icon followed directly by text would overlap.
+
 ## Fonts, kerning and anti-aliasing
 
 Nerd Fonts ships every family in variants, and the Homebrew cask installs all of them:

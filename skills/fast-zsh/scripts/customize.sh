@@ -144,16 +144,16 @@ EOF
         ;;
       icons) cat <<'EOF'
 format = '([$all_status$ahead_behind]($style))'
-conflicted = "\uf071${count} "
-stashed = "\uf187${count} "
-deleted = "\uf014${count} "
-renamed = "\uf0ec${count} "
-modified = "\uf040${count} "
-typechanged = "\uf0ad${count} "
-staged = "\uf067${count} "
-untracked = "\uf128${count} "
-ahead = "\uf062${count} "
-behind = "\uf063${count} "
+conflicted = "\uf071 ${count} "
+stashed = "\uf187 ${count} "
+deleted = "\uf014 ${count} "
+renamed = "\uf0ec ${count} "
+modified = "\uf040 ${count} "
+typechanged = "\uf0ad ${count} "
+staged = "\uf067 ${count} "
+untracked = "\uf128 ${count} "
+ahead = "\uf062 ${count} "
+behind = "\uf063 ${count} "
 diverged = "\uf0dc \uf062${ahead_count} \uf063${behind_count} "
 up_to_date = ""
 EOF

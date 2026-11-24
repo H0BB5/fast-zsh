@@ -18,7 +18,7 @@ truncate_to_repo = false
 style = "bold cyan"
 
 [git_branch]
-symbol = " "
+symbol = "\ue0a0 "
 format = "[\\(](blue)[$symbol$branch]($style)[\\)](blue) "
 style = "bold purple"
 truncation_length = 36
