@@ -178,7 +178,12 @@ apply() {
     fi
   else
     case "$cur" in
-      *"Nerd Font Mono"*) say "  ok       font-family is already '$cur'" ;;
+      *"Nerd Font Mono"*)
+        if [ "$cur" = "$fam" ]; then say "  ok       font-family is already '$cur'"
+        elif [ "$force" = 1 ] && [ "$dry" = 0 ]; then
+          sed "s|^[[:space:]]*font-family[[:space:]]*=.*|font-family = \"$fam\"|" "$GH_XDG" > "$GH_XDG.fz-tmp" && mv "$GH_XDG.fz-tmp" "$GH_XDG"
+          say "  switched font-family from '$cur' to '$fam'"
+        else say "  left alone: font-family is '$cur' (use --force to switch to '$fam')"; fi ;;
       *)
         if [ "$force" = 1 ] && [ "$dry" = 0 ]; then
           sed "s|^[[:space:]]*font-family[[:space:]]*=.*|font-family = \"$fam\"|" "$GH_XDG" > "$GH_XDG.fz-tmp" && mv "$GH_XDG.fz-tmp" "$GH_XDG"

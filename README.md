@@ -97,6 +97,26 @@ echo 'export STARSHIP_CONFIG=$HOME/.config/starship-mine.toml' >> ~/.zsh.local
 Presets that draw icons or colored segments need a Nerd Font too.
 `skills/fast-zsh/references/prompt.md` covers colors, the git markers, hiding or trimming modules such as aws and gcloud, and the colors of what you type.
 
+## Customize with your agent
+
+Ask Claude to "customize my terminal with fast-zsh".
+It asks about the prompt layout, the marker, git status markers, directory display, extra indicators (jobs, a Claude Code marker, worktree name, duration, exit code), a color theme and the colors of typed commands, then applies the answers.
+Pick the color theme at https://terminalcolors.com/themes/ and tell the agent its name, for example `moonfly/default`.
+The theme goes into Ghostty and cmux (they share one config), and is imported into iTerm and Terminal.app.
+
+The same steps run by hand:
+
+```
+skills/fast-zsh/scripts/customize.sh starship --layout one --marker '$' --git icons --dir repo --extras duration,status,jobs,claude,worktree
+skills/fast-zsh/scripts/customize.sh theme moonfly/default
+skills/fast-zsh/scripts/customize.sh highlight theme
+skills/fast-zsh/scripts/customize.sh ligatures on
+skills/fast-zsh/scripts/customize.sh reset            # remove everything this script wrote
+```
+
+Everything it writes sits in a managed block or in `~/.config/starship-mine.toml`, so running it again replaces the previous choice.
+`references/customize.md` lists every option.
+
 ## Terminal fonts
 
 ```
@@ -129,9 +149,9 @@ Installs from v0.1 and v0.2 linked those three files into `~/.config/fast-zsh`, 
 install.sh             wrapper for skills/fast-zsh/scripts/install.sh
 skills/fast-zsh/
   SKILL.md             instructions the agent follows
-  scripts/             install.sh, doctor.sh, fonts.sh, uninstall.sh (legacy/ holds v0.1 baselines for migration)
+  scripts/             install.sh, doctor.sh, fonts.sh, customize.sh, uninstall.sh (legacy/ holds v0.1 baselines)
   config/              the files that get installed (starship.toml, starship-icons.toml, zsh modules)
-  references/          troubleshooting.md, prompt.md (prompt, colors, syntax highlighting)
+  references/          troubleshooting.md, prompt.md (colors, modules), customize.md (the agent's question flow)
 ```
 
 Changes that every teammate should get belong in `skills/fast-zsh/config`, through a pull request.

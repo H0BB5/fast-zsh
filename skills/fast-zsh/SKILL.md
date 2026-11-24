@@ -31,7 +31,18 @@ Scripts are idempotent and back up anything they replace to `~/.config-backups/f
    If they chose `--icons`, run `scripts/fonts.sh check` and walk them through any terminal it flags.
    A box where the branch icon should be means that terminal's font is wrong (see troubleshooting).
    If startup feels slow, run `zshprof` and fix the top entry.
-6. Report what changed, the backup path, how to roll back (`scripts/uninstall.sh`), and the few habits worth learning: `z <fragment>` to jump to a directory, Ctrl-R for fuzzy history, Ctrl-T for files with a preview, Ctrl-/ to toggle previews.
+6. Offer to customize the look and feel (see Customize below).
+7. Report what changed, the backup path, how to roll back (`scripts/uninstall.sh`), and the few habits worth learning: `z <fragment>` to jump to a directory, Ctrl-R for fuzzy history, Ctrl-T for files with a preview, Ctrl-/ to toggle previews.
+
+## Customize
+
+After the install works, offer to customize the look and feel.
+Read `references/customize.md`, ask the questions with the AskUserQuestion tool (batches of up to four, with the previews listed there), and apply every answer with `scripts/customize.sh`.
+Never hand-edit the user's starship config or Ghostty config to do this, because the script validates what it writes and keeps its changes in blocks that `customize.sh reset` can remove.
+
+For the terminal color theme, send the user to https://terminalcolors.com/themes/ to browse and choose.
+Ask for the theme page URL or its name (`<theme>/<variant>`, for example `moonfly/default`), verify it with `scripts/customize.sh theme <theme>/<variant> --check`, then apply it.
+Tell the user the clicks the script cannot do (picking the imported preset in iTerm and the imported profile in Terminal.app, and reloading Ghostty and cmux).
 
 ## Repair
 
