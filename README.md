@@ -86,15 +86,16 @@ The default needs no special font.
 `./install.sh --icons` adds a branch icon, which needs a Nerd Font set in the terminal profile.
 `skills/fast-zsh/references/troubleshooting.md` has the steps for iTerm and Ghostty.
 
-Starship presets are one command away:
+Starship presets are one command away.
+Write them to your own file and point starship at it, so updates never overwrite it:
 
 ```
-starship preset --list
-starship preset tokyo-night -o ~/.config/starship.toml   # replaces the link with a real file
+starship preset tokyo-night -o ~/.config/starship-mine.toml
+echo 'export STARSHIP_CONFIG=$HOME/.config/starship-mine.toml' >> ~/.zsh.local
 ```
 
 Presets that draw icons or colored segments need a Nerd Font too.
-A real file at `~/.config/starship.toml` is yours to keep, and the installer backs it up before replacing it.
+`skills/fast-zsh/references/prompt.md` covers colors, the git markers, hiding or trimming modules such as aws and gcloud, and the colors of what you type.
 
 ## Terminal fonts
 
@@ -130,7 +131,7 @@ skills/fast-zsh/
   SKILL.md             instructions the agent follows
   scripts/             install.sh, doctor.sh, fonts.sh, uninstall.sh (legacy/ holds v0.1 baselines for migration)
   config/              the files that get installed (starship.toml, starship-icons.toml, zsh modules)
-  references/          troubleshooting guide
+  references/          troubleshooting.md, prompt.md (prompt, colors, syntax highlighting)
 ```
 
 Changes that every teammate should get belong in `skills/fast-zsh/config`, through a pull request.

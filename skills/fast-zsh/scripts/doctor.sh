@@ -90,6 +90,22 @@ dups="$(printf '%s\n' "$paths" | sort | uniq -d | wc -l | tr -d ' ')"
 fns="$(zsh -l -i -c 'print -r -- $+functions[z] $+functions[fzf-history-widget] $+functions[_mise_hook]' 2>/dev/null | tail -1)"
 [ "$fns" = "1 1 1" ] && pass "zoxide, fzf and mise hooks are loaded" || warn "tool hooks not loaded (z/fzf/mise: $fns)" "rm -rf ~/.cache/zsh && zsh -l -i -c exit"
 
+echo "== Prompt"
+# The prompt reads $STARSHIP_CONFIG, which users may set in ~/.zsh.local. Ask a login shell for it.
+sc="$(zsh -l -i -c 'print -r -- ${STARSHIP_CONFIG:-}' 2>/dev/null | tail -1)"
+if [ -n "$sc" ]; then export STARSHIP_CONFIG="$sc"; info "using your STARSHIP_CONFIG: $sc"; fi
+if command -v starship >/dev/null 2>&1 && command -v git >/dev/null 2>&1; then
+  pd="$(mktemp -d)"
+  git -C "$pd" init -q -b main 2>/dev/null && git -C "$pd" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i 2>/dev/null
+  branch_out="$(cd "$pd" && starship module git_branch 2>&1)"
+  rm -rf "$pd"
+  if printf '%s' "$branch_out" | grep -q "$(printf '\033')\[[0-9;]*m[^$(printf '\033')]*main"; then
+    pass "git branch is colored in the prompt"
+  else
+    warn "git branch renders with no color" "an invalid color name in your starship config is ignored silently; valid names are black red green blue purple cyan white yellow (there is no 'magenta'), see references/prompt.md"
+  fi
+fi
+
 echo "== Node"
 if command -v mise >/dev/null 2>&1; then
   mise settings get idiomatic_version_file_enable_tools 2>/dev/null | grep -q node \

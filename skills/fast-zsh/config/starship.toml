@@ -1,4 +1,4 @@
-# Two lines: location and git on top, input below. Plain Unicode only, so any terminal font works.
+# One line: directory, git branch and status, then the input marker (the zap-prompt look, ⚡➜).
 # For a branch icon, install with --icons (starship-icons.toml, needs a Nerd Font).
 "$schema" = 'https://starship.rs/config-schema.json'
 
@@ -6,7 +6,7 @@ add_newline = false
 command_timeout = 500
 scan_timeout = 30
 
-format = "$directory$git_branch$git_status$cmd_duration$line_break$character"
+format = "$directory$git_branch$git_status$cmd_duration$character"
 
 [character]
 success_symbol = "[⚡➜](bold green) "
@@ -19,7 +19,7 @@ style = "bold cyan"
 
 [git_branch]
 format = "[\\(](blue)[$branch]($style)[\\)](blue) "
-style = "bold magenta"
+style = "bold purple"
 truncation_length = 36
 truncation_symbol = "…"
 

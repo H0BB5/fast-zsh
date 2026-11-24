@@ -1,6 +1,6 @@
 {
   "name": "fast-zsh",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Fast zsh setup for macOS (starship, zoxide, fzf, mise) with an installer, doctor and troubleshooting guide an agent can run and repair from.",
   "author": {
     "name": "fast-zsh maintainers"

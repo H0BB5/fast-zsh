@@ -42,6 +42,7 @@ For font and rendering problems run `scripts/fonts.sh check`, which reads the re
 `scripts/fonts.sh apply` fixes Ghostty and cmux (they share `~/.config/ghostty/config`) and prints the steps for iTerm and Terminal.app, which keep the font in the profile.
 Always pick the Mono variant, never a Propo variant, and leave spacing at its defaults.
 `references/troubleshooting.md` explains the variants and each rendering setting.
+For questions about prompt colors, which modules show (aws, gcloud and others), or the colors of typed commands, read `references/prompt.md`.
 
 On an install made by v0.1 or v0.2, `~/.zshrc` is a symlink into `~/.config/fast-zsh`.
 Re-run `scripts/install.sh`: it migrates the file and keeps any lines other tools appended.

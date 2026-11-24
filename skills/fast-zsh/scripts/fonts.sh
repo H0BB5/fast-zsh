@@ -26,7 +26,7 @@ fail() { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf
 
 count_fonts() { find -L "$HOME/Library/Fonts" /Library/Fonts -maxdepth 1 -name "$1" 2>/dev/null | wc -l | tr -d ' '; }
 # True when the active starship config draws the branch icon (U+E0A0), the only thing that needs a Nerd Font.
-icons_on() { grep -qs -e 'ue0a0' -e "$(printf '\356\202\240')" "$HOME/.config/starship.toml"; }
+icons_on() { grep -qs -e 'ue0a0' -e "$(printf '\356\202\240')" "${STARSHIP_CONFIG:-$HOME/.config/starship.toml}"; }
 have_py() { xcode-select -p >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; }
 
 # Last font-family value in a Ghostty-style config file, without quotes.

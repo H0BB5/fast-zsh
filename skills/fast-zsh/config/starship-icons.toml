@@ -6,7 +6,7 @@ add_newline = false
 command_timeout = 500
 scan_timeout = 30
 
-format = "$directory$git_branch$git_status$cmd_duration$line_break$character"
+format = "$directory$git_branch$git_status$cmd_duration$character"
 
 [character]
 success_symbol = "[⚡➜](bold green) "
@@ -20,7 +20,7 @@ style = "bold cyan"
 [git_branch]
 symbol = " "
 format = "[\\(](blue)[$symbol$branch]($style)[\\)](blue) "
-style = "bold magenta"
+style = "bold purple"
 truncation_length = 36
 truncation_symbol = "…"
 
