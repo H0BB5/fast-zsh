@@ -1,0 +1,45 @@
+# Mirrors the old zap-prompt look (⚡➜ dir (branch)) but runs in Rust with a hard time budget.
+"$schema" = 'https://starship.rs/config-schema.json'
+
+add_newline = false
+command_timeout = 500
+scan_timeout = 30
+
+format = "$directory$git_branch$git_status$cmd_duration$character"
+
+[character]
+success_symbol = "[⚡➜](bold green) "
+error_symbol = "[⚡➜](bold red) "
+
+[directory]
+truncation_length = 1
+truncate_to_repo = false
+style = "bold cyan"
+
+[git_branch]
+format = "[\\(](blue)[$branch]($style)[\\)](blue) "
+style = "bold magenta"
+
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
+style = "bold yellow"
+
+[cmd_duration]
+min_time = 2000
+format = "[$duration]($style) "
+
+# Everything below probes the filesystem on every prompt for little value. Off.
+[package]
+disabled = true
+[docker_context]
+disabled = true
+[nodejs]
+disabled = true
+[python]
+disabled = true
+[rust]
+disabled = true
+[golang]
+disabled = true
+[java]
+disabled = true

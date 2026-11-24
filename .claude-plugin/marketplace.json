@@ -1,0 +1,15 @@
+{
+  "name": "fast-zsh",
+  "owner": {
+    "name": "fast-zsh maintainers"
+  },
+  "plugins": [
+    {
+      "name": "fast-zsh",
+      "source": "./",
+      "description": "Fast zsh setup for macOS with an installer, doctor and troubleshooting guide an agent can run and repair from.",
+      "version": "0.1.0"
+    }
+  ],
+  "description": "Fast zsh setup for macOS: installer, doctor and troubleshooting guide for agents and engineers."
+}
