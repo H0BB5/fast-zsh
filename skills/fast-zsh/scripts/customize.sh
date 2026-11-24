@@ -24,9 +24,11 @@ GH_CONFIG="$HOME/.config/ghostty/config"
 THEMES_URL="https://terminalcolors.com/themes/"
 # The only top-level settings a downloaded theme may carry. A Terminal.app profile can also hold a command
 # Terminal runs when it opens the profile (CommandString) or a different shell (Shell), so a file with any
-# other setting is refused. Published themes hold colors, the font and a few profile fields.
-TERMINAL_KEYS='^(.+Color|Font|FontAntialias|FontWidthSpacing|FontHeightSpacing|ProfileCurrentVersion|TerminalType|name|type)$'
+# other setting is refused. Published themes hold the 21 colors below, the font and a few profile fields.
+TERMINAL_KEYS='^(ANSI(Bright)?(Black|Red|Green|Yellow|Blue|Magenta|Cyan|White)Color|BackgroundColor|TextColor|TextBoldColor|CursorColor|SelectionColor|Font|FontAntialias|FontWidthSpacing|FontHeightSpacing|ProfileCurrentVersion|TerminalType|name|type)$'
 ITERM_KEYS='^.+ Color( \((Light|Dark)\))?$'
+# Settings a refusal message may name. Everything else is only counted (see plist_unexpected).
+KNOWN_DANGEROUS_KEYS='CommandString RunCommandAsShell Shell'
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'customize.sh: %s\n' "$*" >&2; exit 1; }
@@ -241,16 +243,28 @@ EOF
 }
 
 # ── terminal theme ───────────────────────────────────────────────
-# plist_extra_keys <file> <ERE>: print the top-level settings that do not match <ERE>, and fail if there are any.
-# `plutil -lint` only proves a file parses. The XML form indents top-level keys with exactly one tab, so they
-# can be listed without a plist library; nested keys (inside an iTerm color) are indented further.
-plist_extra_keys() {
-  local tab keys extra
+# plist_unexpected <file> <ERE>: succeed silently when every top-level setting matches <ERE>. Otherwise fail and
+# print why, in words this script chooses: a count, plus any names from KNOWN_DANGEROUS_KEYS. Key names come from
+# the download, so they are never printed; they could hold terminal escape codes or text aimed at an agent.
+# `plutil -lint` only proves a file parses. The XML form puts each top-level key on a line indented by exactly one
+# tab, so keys can be listed without a plist library; nested keys (inside an iTerm color) are indented further.
+# A key that spans lines (it contains a newline) or is empty cannot be checked that way, so it refuses the file.
+plist_unexpected() {
+  local tab xml total keys bad named k
   tab="$(printf '\t')"
-  keys="$(plutil -convert xml1 -o - "$1" 2>/dev/null | sed -n "s/^${tab}<key>\(.*\)<\/key>\$/\1/p")"
-  if [ -z "$keys" ]; then echo "not a settings dictionary"; return 1; fi
-  extra="$(printf '%s\n' "$keys" | grep -Ev "$2" | tr '\n' ' ' | sed 's/ $//')"
-  [ -z "$extra" ] || { printf '%s\n' "$extra"; return 1; }
+  xml="$(plutil -convert xml1 -o - "$1" 2>/dev/null)" || { echo "settings that could not be read"; return 1; }
+  total="$(printf '%s\n' "$xml" | grep -c "^${tab}<key>")"
+  keys="$(printf '%s\n' "$xml" | sed -n "s/^${tab}<key>\(..*\)<\/key>\$/\1/p")"
+  if [ "$total" -eq 0 ] || [ "$total" -ne "$(printf '%s\n' "$keys" | grep -c .)" ]; then
+    echo "settings that could not be read"; return 1
+  fi
+  bad="$(printf '%s\n' "$keys" | grep -Evc "$2")"
+  case "$bad" in ''|*[!0-9]*) echo "settings that could not be read"; return 1 ;; 0) return 0 ;; esac
+  named=""
+  for k in $KNOWN_DANGEROUS_KEYS; do printf '%s\n' "$keys" | grep -qx "$k" && named="$named $k"; done
+  if [ -n "$named" ]; then echo "$bad setting(s) that are not part of a color theme, including${named}"
+  else echo "$bad setting(s) that are not part of a color theme"; fi
+  return 1
 }
 
 cmd_theme() {
@@ -271,7 +285,7 @@ cmd_theme() {
   done
   local slug="$theme-$variant" base="https://terminalcolors.com/downloads"
   local gh_url="$base/ghostty/$slug" it_url="$base/iterm2/$slug.itermcolors" tm_url="$base/terminal-app/$slug.terminal"
-  local fetch=(curl -fsSL --proto '=https' --max-time 20)
+  local fetch=(curl -fsSL --proto '=https' --max-time 20 --max-filesize 1048576)   # theme files are a few KB
 
   # The site answers HTTP 200 for any name (unknown ones get a web page), so a theme exists only if the
   # downloaded file holds a full palette: background, foreground and 16 ANSI colors (18+ valid lines).
@@ -305,15 +319,15 @@ EOF
   fi
   if [ "$it" = 1 ] && [ -d /Applications/iTerm.app ]; then
     if "${fetch[@]}" -o "$d/$slug.itermcolors" "$it_url" 2>/dev/null && plutil -lint "$d/$slug.itermcolors" >/dev/null 2>&1; then
-      if extra="$(plist_extra_keys "$d/$slug.itermcolors" "$ITERM_KEYS")"; then
+      if why="$(plist_unexpected "$d/$slug.itermcolors" "$ITERM_KEYS")"; then
         open -a iTerm "$d/$slug.itermcolors" && say "iTerm: imported the color preset. Select it once: Settings > Profiles > Colors > Color Presets > $theme."
-      else say "iTerm: the preset for $theme/$variant holds more than colors ($extra), so it was not imported"; fi
+      else say "iTerm: the preset for $theme/$variant was not imported: it holds $why"; fi
     else say "iTerm: no preset published for $theme/$variant, skipped"; fi
   fi
   if [ "$tm" = 1 ]; then
     if "${fetch[@]}" -o "$d/$slug.terminal" "$tm_url" 2>/dev/null && plutil -lint "$d/$slug.terminal" >/dev/null 2>&1; then
-      if ! extra="$(plist_extra_keys "$d/$slug.terminal" "$TERMINAL_KEYS")"; then
-        say "Terminal.app: the profile for $theme/$variant holds settings other than colors and font ($extra), so it was not imported"
+      if ! why="$(plist_unexpected "$d/$slug.terminal" "$TERMINAL_KEYS")"; then
+        say "Terminal.app: the profile for $theme/$variant was not imported: it holds $why"
       else
         open -a Terminal "$d/$slug.terminal" && say "Terminal.app: imported the profile '$slug'. Make it the default once: Settings > Profiles > $slug > Default."
         sleep 4
